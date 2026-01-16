@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "as_of_utc": "2026-01-17T00:00:00Z",
+
+  "inputs_used": {
+    "scenario_id": "CHAOTIC",
+    "selected_buckets": {
+      "size_bucket": "M",
+      "rebalance_bucket": "weekly",
+      "tenor_bucket": "14D"
+    }
+  },
+
+  "decision": {
+    "pool_id": "POOL_2",
+    "pool_label": "UniswapV3 WBTC/ETH 0.30%",
+    "hedge_type": "collar",
+    "hedge_label": "Collar (medium protection, medium cost)",
+    "tenor_bucket": "14D",
+    "size_bucket": "M",
+    "rebalance_bucket": "weekly"
+  },
+
+  "score": {
+    "objective_value": 0.0825,
+    "units": "APR-equivalent (decimal)"
+  },
+
+  "score_breakdown": {
+    "rewards": {
+      "fee_apr": 0.0620,
+      "incentive_apr": 0.0280,
+      "base_apr": 0.0000,
+      "total_gross_apr": 0.0900
+    },
+    "penalties_and_costs": {
+      "il_penalty_apr": 0.0310,
+      "hedge_cost_apr": 0.0280,
+      "execution_drag_apr": 0.0105,
+      "risk_penalty_apr": 0.0180,
+      "total_penalties_apr": 0.0875
+    },
+    "net_apr": {
+      "estimated_net_apr": 0.0025,
+      "notes": "net = total_gross_apr - total_penalties_apr (plus any hedge benefit terms if modeled separately)"
+    }
+  },
+
+  "baseline_comparison": {
+    "baseline_id": "MAX_GROSS_APR_NO_HEDGE",
+    "baseline_decision": {
+      "pool_id": "POOL_5",
+      "pool_label": "Volatile LP (high reward, high risk)",
+      "hedge_type": "none",
+      "tenor_bucket": "14D",
+      "size_bucket": "M",
+      "rebalance_bucket": "weekly"
+    },
+    "baseline_score_breakdown": {
+      "rewards": {
+        "fee_apr": 0.0850,
+        "incentive_apr": 0.0600,
+        "base_apr": 0.0000,
+        "total_gross_apr": 0.1450
+      },
+      "penalties_and_costs": {
+        "il_penalty_apr": 0.1100,
+        "hedge_cost_apr": 0.0000,
+        "execution_drag_apr": 0.0140,
+        "risk_penalty_apr": 0.0300,
+        "total_penalties_apr": 0.1540
+      },
+      "net_apr": {
+        "estimated_net_apr": -0.0090
+      }
+    },
+    "delta_vs_baseline": {
+      "net_apr_improvement": 0.0115,
+      "notes": "Optimizer sacrifices headline APR to improve net outcome under the chosen scenario."
+    }
+  },
+
+  "explain_like_im_15": [
+    "This picked a pool with decent rewards but not crazy risk.",
+    "It added a collar hedge to reduce the big losses when prices swing.",
+    "Weekly rebalancing was chosen because daily trading costs are too high in this scenario.",
+    "The naive strategy had a higher APY, but after losses and costs it actually ends up worse."
+  ],
+
+  "debug": {
+    "chosen_binary_variables": {
+      "x_pool": { "POOL_1": 0, "POOL_2": 1, "POOL_3": 0, "POOL_4": 0, "POOL_5": 0 },
+      "h_hedge": { "none": 0, "protective_put": 0, "collar": 1 },
+      "s_size": { "S": 0, "M": 1, "L": 0 },
+      "r_rebalance": { "daily": 0, "weekly": 1 },
+      "t_tenor": { "7D": 0, "14D": 1, "30D": 0 }
+    },
+    "notes": "Keep this section optional; it's useful for debugging and demos."
+  }
+}

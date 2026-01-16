@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "as_of_utc": "2026-01-17T00:00:00Z",
+  "units": {
+    "apr": "decimal (0.12 = 12% APR)",
+    "usd": "USD",
+    "bps": "basis points (10 = 0.10%)"
+  },
+  "buckets": {
+    "size_buckets": [
+      { "key": "S", "notional_usd": 1000, "multiplier": 0.5 },
+      { "key": "M", "notional_usd": 5000, "multiplier": 1.0 },
+      { "key": "L", "notional_usd": 20000, "multiplier": 2.0 }
+    ],
+    "rebalance_buckets": [
+      { "key": "daily", "rebalance_per_week": 7, "multiplier": 1.8 },
+      { "key": "weekly", "rebalance_per_week": 1, "multiplier": 1.0 }
+    ]
+  },
+  "pools": [
+    {
+      "pool_id": "POOL_1",
+      "label": "UniswapV3 ETH/USDC 0.05%",
+      "protocol": "uniswap_v3",
+      "chain": "ethereum",
+      "strategy_type": "lp",
+      "tokens": ["ETH", "USDC"],
+      "tvl_usd": 0,
+      "fee_tier_bps": 5,
+
+      "reward": {
+        "fee_apr": 0.00,
+        "incentive_apr": 0.00,
+        "base_apr": 0.00,
+        "notes": "fee_apr + incentive_apr + base_apr = total gross APR before costs"
+      },
+
+      "risk": {
+        "il_risk_score": 0.00,
+        "price_vol_score": 0.00,
+        "liquidity_unwind_cost_usd": 0.00,
+        "notes": "Use simple proxies in MVP (higher = worse)"
+      },
+
+      "execution": {
+        "gas_cost_usd_per_rebalance": 0.00,
+        "slippage_bps_per_rebalance": 0.00,
+        "mev_risk_score": 0.00,
+        "failure_prob_per_rebalance": 0.00,
+        "notes": "These can be scenario-scaled"
+      },
+
+      "stubs_ok": true,
+      "data_sources": {
+        "reward": "TODO",
+        "tvl": "TODO",
+        "prices": "TODO",
+        "gas": "TODO"
+      }
+    },
+    {
+      "pool_id": "POOL_2",
+      "label": "UniswapV3 WBTC/ETH 0.30%",
+      "protocol": "uniswap_v3",
+      "chain": "arbitrum",
+      "strategy_type": "lp",
+      "tokens": ["WBTC", "ETH"],
+      "tvl_usd": 0,
+      "fee_tier_bps": 30,
+      "reward": { "fee_apr": 0.00, "incentive_apr": 0.00, "base_apr": 0.00 },
+      "risk": { "il_risk_score": 0.00, "price_vol_score": 0.00, "liquidity_unwind_cost_usd": 0.00 },
+      "execution": { "gas_cost_usd_per_rebalance": 0.00, "slippage_bps_per_rebalance": 0.00, "mev_risk_score": 0.00, "failure_prob_per_rebalance": 0.00 },
+      "stubs_ok": true,
+      "data_sources": { "reward": "TODO", "tvl": "TODO", "prices": "TODO", "gas": "TODO" }
+    },
+    {
+      "pool_id": "POOL_3",
+      "label": "Stable LP USDC/USDT",
+      "protocol": "curve",
+      "chain": "ethereum",
+      "strategy_type": "lp",
+      "tokens": ["USDC", "USDT"],
+      "tvl_usd": 0,
+      "fee_tier_bps": 4,
+      "reward": { "fee_apr": 0.00, "incentive_apr": 0.00, "base_apr": 0.00 },
+      "risk": { "il_risk_score": 0.00, "price_vol_score": 0.00, "liquidity_unwind_cost_usd": 0.00 },
+      "execution": { "gas_cost_usd_per_rebalance": 0.00, "slippage_bps_per_rebalance": 0.00, "mev_risk_score": 0.00, "failure_prob_per_rebalance": 0.00 },
+      "stubs_ok": true,
+      "data_sources": { "reward": "TODO", "tvl": "TODO", "prices": "TODO", "gas": "TODO" }
+    },
+    {
+      "pool_id": "POOL_4",
+      "label": "Lending USDC (safer baseline)",
+      "protocol": "aave_v3",
+      "chain": "arbitrum",
+      "strategy_type": "lending",
+      "tokens": ["USDC"],
+      "tvl_usd": 0,
+      "fee_tier_bps": 0,
+      "reward": { "fee_apr": 0.00, "incentive_apr": 0.00, "base_apr": 0.00 },
+      "risk": { "il_risk_score": 0.00, "price_vol_score": 0.00, "liquidity_unwind_cost_usd": 0.00 },
+      "execution": { "gas_cost_usd_per_rebalance": 0.00, "slippage_bps_per_rebalance": 0.00, "mev_risk_score": 0.00, "failure_prob_per_rebalance": 0.00 },
+      "stubs_ok": true,
+      "data_sources": { "reward": "TODO", "tvl": "TODO", "prices": "TODO", "gas": "TODO" }
+    },
+    {
+      "pool_id": "POOL_5",
+      "label": "Volatile LP (high reward, high risk)",
+      "protocol": "uniswap_v2",
+      "chain": "polygon",
+      "strategy_type": "lp",
+      "tokens": ["TOKENA", "TOKENB"],
+      "tvl_usd": 0,
+      "fee_tier_bps": 30,
+      "reward": { "fee_apr": 0.00, "incentive_apr": 0.00, "base_apr": 0.00 },
+      "risk": { "il_risk_score": 0.00, "price_vol_score": 0.00, "liquidity_unwind_cost_usd": 0.00 },
+      "execution": { "gas_cost_usd_per_rebalance": 0.00, "slippage_bps_per_rebalance": 0.00, "mev_risk_score": 0.00, "failure_prob_per_rebalance": 0.00 },
+      "stubs_ok": true,
+      "data_sources": { "reward": "TODO", "tvl": "TODO", "prices": "TODO", "gas": "TODO" }
+    }
+  ]
+}
