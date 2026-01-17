@@ -193,6 +193,19 @@ class APYFetcher:
             # Low/normal APY = baseline risk
             il_risk = 0.02
         
+        # Extract token symbols from pool symbol (e.g., "ETH-USDC" -> ["ETH", "USDC"])
+        symbol = pool.get("symbol", "")
+        tokens = []
+        if symbol:
+            # Try common separators
+            for sep in ["-", "/", "_"]:
+                if sep in symbol:
+                    tokens = [t.strip() for t in symbol.split(sep)]
+                    break
+            # If no separator found but has symbol, use as single token
+            if not tokens and symbol:
+                tokens = [symbol.strip()]
+        
         metrics = {
             "pool_id": pool_id,
             "label": mapping["label"],
@@ -204,7 +217,8 @@ class APYFetcher:
             "source": "defillama",
             "pool_key": pool.get("pool", ""),
             "chain": pool.get("chain", ""),
-            "project": pool.get("project", "")
+            "project": pool.get("project", ""),
+            "tokens": tokens  # Include extracted tokens
         }
         
         print(f"[APYFetcher] {pool_id}: APY={apy*100:.2f}%, TVL=${tvl:,.0f}")

@@ -45,13 +45,13 @@
       "chain": "ethereum",
       "strategy_type": "lp",
       "tokens": [
-        "ETH",
-        "USDC"
+        "USDC",
+        "SLVON"
       ],
-      "tvl_usd": 883522,
+      "tvl_usd": 893007,
       "fee_tier_bps": 5,
       "reward": {
-        "fee_apr": 1.5606764999999998,
+        "fee_apr": 1.3469185,
         "incentive_apr": 0.0,
         "base_apr": 0.0,
         "notes": "fee_apr + incentive_apr + base_apr = total gross APR before costs"
@@ -63,7 +63,7 @@
         "notes": "Use simple proxies in MVP (higher = worse)"
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.0719382538,
+        "gas_cost_usd_per_rebalance": 0.057970333622538006,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.02,
         "failure_prob_per_rebalance": 0.01,
@@ -85,12 +85,12 @@
       "strategy_type": "lp",
       "tokens": [
         "WBTC",
-        "ETH"
+        "USDT"
       ],
-      "tvl_usd": 7968242,
+      "tvl_usd": 8057444,
       "fee_tier_bps": 30,
       "reward": {
-        "fee_apr": 0.1860755,
+        "fee_apr": 0.1709503,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -100,7 +100,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.07,
+        "gas_cost_usd_per_rebalance": 0.01313316,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01
@@ -110,7 +110,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "fallback"
+        "gas": "etherscan"
       }
     },
     {
@@ -120,13 +120,14 @@
       "chain": "ethereum",
       "strategy_type": "lp",
       "tokens": [
-        "USDC",
-        "USDT"
+        "IDAI",
+        "IUSDC",
+        "IUSDT"
       ],
-      "tvl_usd": 1385923,
+      "tvl_usd": 1385902,
       "fee_tier_bps": 4,
       "reward": {
-        "fee_apr": 1.2930000000000001,
+        "fee_apr": 1.2937,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -136,7 +137,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.0719382538,
+        "gas_cost_usd_per_rebalance": 0.057970333622538006,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.02,
         "failure_prob_per_rebalance": 0.01
@@ -158,10 +159,10 @@
       "tokens": [
         "USDC"
       ],
-      "tvl_usd": 81703196,
+      "tvl_usd": 81929500,
       "fee_tier_bps": 0,
       "reward": {
-        "fee_apr": 0.026989700000000002,
+        "fee_apr": 0.026950099999999998,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -171,7 +172,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.035,
+        "gas_cost_usd_per_rebalance": 0.00656658,
         "slippage_bps_per_rebalance": 5,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01
@@ -181,7 +182,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "fallback"
+        "gas": "etherscan"
       }
     },
     {
@@ -191,13 +192,13 @@
       "chain": "polygon",
       "strategy_type": "lp",
       "tokens": [
-        "TOKENA",
-        "TOKENB"
+        "USDC",
+        "WETH"
       ],
-      "tvl_usd": 2853213,
+      "tvl_usd": 2868297,
       "fee_tier_bps": 30,
       "reward": {
-        "fee_apr": 3122.7922514,
+        "fee_apr": 2961.4219949000003,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -207,7 +208,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 374.416,
+        "gas_cost_usd_per_rebalance": 216.40821047999998,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01

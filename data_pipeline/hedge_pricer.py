@@ -4,6 +4,8 @@ import time
 from typing import Dict
 from scipy.stats import norm
 
+from data_pipeline.price_fetcher import PriceFetcher
+
 
 class HedgePricer:
     """Prices protective puts and collars for hedging strategies."""
@@ -20,6 +22,7 @@ class HedgePricer:
     def __init__(self):
         """Initialize hedge pricer."""
         self.cache = {}
+        self.price_fetcher = PriceFetcher()
     
     def black_scholes_put(
         self,
@@ -200,9 +203,15 @@ class HedgePricer:
         Returns:
             Dictionary with hedge metrics
         """
-        # Default prices (approximate as of 2026)
+        # Fetch live price if not provided
         if spot_price is None:
-            spot_price = 3500 if asset == "ETH" else 65000
+            if asset == "ETH":
+                spot_price = self.price_fetcher.fetch_eth_price()
+            elif asset == "BTC":
+                spot_price = self.price_fetcher.fetch_btc_price()
+            else:
+                # Fallback for unknown assets
+                spot_price = 3500 if asset == "ETH" else 65000
         
         volatility = self.DEFAULT_IV.get(asset, 0.60)
         

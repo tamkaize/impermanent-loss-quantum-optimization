@@ -10,7 +10,7 @@ class ScenarioBuilder:
     SCENARIOS = {
         "CALM": {
             "label": "Calm market (low costs, lower risk)",
-            "description": "Low volatility, normal gas prices, stable conditions",
+            "notes": "Low volatility, normal gas prices, stable conditions",
             "multipliers": {
                 "reward_multiplier": 1.0,
                 "il_risk_multiplier": 0.8,
@@ -22,7 +22,7 @@ class ScenarioBuilder:
         },
         "CHAOTIC": {
             "label": "Chaotic market (high costs, higher risk)",
-            "description": "High volatility, elevated gas, increased MEV/slippage",
+            "notes": "High volatility, elevated gas, increased MEV/slippage",
             "multipliers": {
                 "reward_multiplier": 1.0,  # Rewards don't increase
                 "il_risk_multiplier": 1.6,  # IL risk 60% higher
@@ -44,8 +44,7 @@ class ScenarioBuilder:
         "weekly": {
             "extra_gas_multiplier": 1.0,
             "extra_failure_multiplier": 1.0,
-            "notes": "Weekly rebalancing is baseline"
-        }
+        },
     }
     
     def __init__(self):
@@ -142,7 +141,7 @@ def main():
         scenario = builder.get_scenario(scenario_id)
         print(f"=== {scenario_id} ===")
         print(f"Label: {scenario['label']}")
-        print(f"Description: {scenario['description']}\n")
+        print(f"Description: {scenario['notes']}\n")
         
         print("Multipliers:")
         for key, value in scenario["multipliers"].items():

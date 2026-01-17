@@ -80,12 +80,21 @@ class GasFetcher:
         
         try:
             # Build Etherscan V2 API request
-            params = {
-                "chainid": chain_config["chainid"],
-                "module": "gastracker",
-                "action": "gasoracle",
-                "apikey": api_key
-            }
+            # Arbitrum does not support gasoracle on V2, use proxy eth_gasPrice
+            if chain == "arbitrum":
+                params = {
+                    "chainid": chain_config["chainid"],
+                    "module": "proxy",
+                    "action": "eth_gasPrice",
+                    "apikey": api_key
+                }
+            else:
+                params = {
+                    "chainid": chain_config["chainid"],
+                    "module": "gastracker",
+                    "action": "gasoracle",
+                    "apikey": api_key
+                }
             
             response = requests.get(
                 self.BASE_URL,
@@ -96,6 +105,28 @@ class GasFetcher:
             
             data = response.json()
             
+            # Handle Arbitrum Proxy Response (JSON-RPC style)
+            if chain == "arbitrum":
+                if "result" in data and isinstance(data["result"], str):
+                    try:
+                        wei = int(data["result"], 16)
+                        gwei = wei / 1e9
+                        gas_data = {
+                            "safe": gwei,
+                            "propose": gwei,
+                            "fast": gwei * 1.1,
+                            "timestamp": time.time()
+                        }
+                        self.cache[chain] = gas_data
+                        print(f"[GasFetcher] Fetched gas for {chain}: {gas_data['propose']} Gwei")
+                        return gas_data
+                    except ValueError:
+                        pass
+                
+                print(f"[GasFetcher] API returned error for {chain}: {data}")
+                return self._fallback_gas_price(chain)
+
+            # Handle Standard Gas Oracle Response
             if data.get("status") == "1" and data.get("result"):
                 result = data["result"]
                 gas_data = {

@@ -1,0 +1,570 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Header } from '@/components/Header';
+import { ScenarioSelector } from '@/components/ScenarioSelector';
+import { ModeToggle } from '@/components/ModeToggle';
+import { BucketSelector } from '@/components/BucketSelector';
+import { PoolTable } from '@/components/PoolTable';
+import { ImportExportButtons } from '@/components/ImportExportButtons';
+import { ResultsView } from '@/components/ResultsView';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppState } from '@/hooks/useAppState';
+import { runMockSolver, validatePools, validateScenarios } from '@/lib/solver';
+import { SelectedBuckets, OptimizerResult } from '@/types';
+import { Zap, AlertCircle, RotateCcw, Loader2, Clock, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+const POLL_INTERVAL_MS = 5000; // 5 seconds
+const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+type JobStatus = 'idle' | 'submitting' | 'polling' | 'completed' | 'failed';
+
+const Optimizer = () => {
+  const navigate = useNavigate();
+  const {
+    pools,
+    hedges,
+    scenarios,
+    addRun,
+    importPools,
+    importHedges,
+    importScenarios,
+    exportPools,
+    exportHedges,
+    exportScenarios,
+    resetToDefaults
+  } = useAppState();
+
+  const [selectedScenario, setSelectedScenario] = useState(scenarios[0]?.scenario_id || 'CALM');
+  const [isApiMode, setIsApiMode] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('offline');
+  const [jobStatus, setJobStatus] = useState<JobStatus>('idle');
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [pollCount, setPollCount] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [result, setResult] = useState<OptimizerResult | null>(null);
+  const [positionError, setPositionError] = useState<string | null>(null);
+  const [hasRunOptimizer, setHasRunOptimizer] = useState(false);
+  const [selectedBuckets, setSelectedBuckets] = useState<SelectedBuckets>({
+    position_size_usd: null as unknown as number,
+    rebalance_bucket: 'weekly',
+    tenor_bucket: '14D'
+  });
+
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check DIRAC-3 API availability when mode changes
+  useEffect(() => {
+    if (isApiMode) {
+      setApiStatus('checking');
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        setApiStatus('offline');
+        return;
+      }
+
+      setApiStatus('online');
+    } else {
+      setApiStatus('offline');
+    }
+  }, [isApiMode]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    stopPolling();
+    setJobStatus('idle');
+    setCurrentJobId(null);
+    setPollCount(0);
+    setElapsedTime(0);
+    toast.info('Optimization cancelled');
+  }, [stopPolling]);
+
+  const pollJobStatus = useCallback(async (jobId: string) => {
+    const elapsed = Date.now() - (startTimeRef.current || Date.now());
+
+    if (elapsed > MAX_POLL_DURATION_MS) {
+      stopPolling();
+      setJobStatus('failed');
+      toast.error('Optimization timed out after 5 minutes. Please try again.');
+      return;
+    }
+
+    setPollCount((prev) => prev + 1);
+
+    try {
+      const payload = {
+        action: "status" as const,
+        job_id: jobId,
+        scenario_id: selectedScenario,
+        pools,
+        hedges,
+        scenarios,
+        selected_buckets: selectedBuckets,
+        request_baseline: true,
+      };
+
+      console.log(`[DIRAC-3] Polling status (attempt ${pollCount + 1})`, { job_id: jobId });
+
+      const { data, error } = await supabase.functions.invoke('dirac-solver', {
+        body: payload,
+      });
+
+      if (error) {
+        console.error('Status poll error:', error);
+        // Don't stop polling on transient errors
+        return;
+      }
+
+      console.log('[DIRAC-3] Status response:', data);
+
+      if (data?.status === 'COMPLETED' && data?.result) {
+        stopPolling();
+        setJobStatus('completed');
+        setResult(data.result as OptimizerResult);
+        setHasRunOptimizer(true);
+        addRun(data.result as OptimizerResult);
+        toast.success('DIRAC-3 optimization complete!');
+      } else if (data?.status === 'FAILED') {
+        stopPolling();
+        setJobStatus('failed');
+        toast.error('DIRAC-3 job failed. Falling back to mock solver.');
+
+        // Fallback to mock
+        const scenario = scenarios.find(s => s.scenario_id === selectedScenario)!;
+        const mockResult = runMockSolver(pools, hedges, scenario, selectedBuckets);
+        setResult(mockResult);
+        setHasRunOptimizer(true);
+        addRun(mockResult);
+      }
+      // If status is RUNNING or other, continue polling
+    } catch (err) {
+      console.error('Poll error:', err);
+      // Continue polling on errors
+    }
+  }, [selectedScenario, pools, hedges, scenarios, selectedBuckets, pollCount, stopPolling, addRun]);
+
+  const isPositionValid = selectedBuckets.position_size_usd !== null &&
+    selectedBuckets.position_size_usd > 0 &&
+    !isNaN(selectedBuckets.position_size_usd);
+
+  const isRunning = jobStatus === 'submitting' || jobStatus === 'polling';
+
+  const handleRunOptimizer = async () => {
+    // Validate position size on run attempt
+    if (!isPositionValid) {
+      setPositionError('Please enter a valid amount');
+      toast.error('Please enter a valid position size');
+      return;
+    }
+
+    // Validate inputs
+    const poolValidation = validatePools(pools);
+    if (!poolValidation.valid) {
+      toast.error(poolValidation.errors[0]);
+      return;
+    }
+
+    const scenarioValidation = validateScenarios(scenarios);
+    if (!scenarioValidation.valid) {
+      toast.error(scenarioValidation.errors[0]);
+      return;
+    }
+
+    const scenario = scenarios.find(s => s.scenario_id === selectedScenario);
+    if (!scenario) {
+      toast.error('Please select a scenario');
+      return;
+    }
+
+    setJobStatus('submitting');
+    setResult(null);
+    setPollCount(0);
+    setElapsedTime(0);
+
+    try {
+      if (false && isApiMode && apiStatus === 'online') {  // Disabled API mode - always use local
+        // Step 1: Submit job to DIRAC-3
+        toast.info('Submitting to DIRAC-3 quantum solver...');
+
+        const payload = {
+          action: "submit" as const,
+          scenario_id: selectedScenario,
+          pools,
+          hedges,
+          scenarios,
+          selected_buckets: selectedBuckets,
+          request_baseline: true,
+          num_samples: 10,
+          relaxation_schedule: 1,
+        };
+
+        console.groupCollapsed('[DIRAC-3] Submit job');
+        console.log({
+          scenario_id: payload.scenario_id,
+          num_pools: payload.pools.length,
+          selected_buckets: payload.selected_buckets,
+        });
+        console.groupEnd();
+
+        const { data, error } = await supabase.functions.invoke('dirac-solver', {
+          body: payload,
+        });
+
+        if (error) {
+          console.error('DIRAC-3 submit error:', error);
+          throw new Error(error.message || 'DIRAC-3 job submission failed');
+        }
+
+        if (!data?.job_id) {
+          console.error('No job_id in response:', data);
+          throw new Error('DIRAC-3 did not return a job ID');
+        }
+
+        const jobId = data.job_id;
+        console.log('[DIRAC-3] Job submitted:', { job_id: jobId });
+
+        setCurrentJobId(jobId);
+        setJobStatus('polling');
+        startTimeRef.current = Date.now();
+
+        toast.info(`Job submitted! Polling for results... (ID: ${jobId.slice(0, 8)})`);
+
+        // Start elapsed time timer
+        timerIntervalRef.current = setInterval(() => {
+          setElapsedTime(Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000));
+        }, 1000);
+
+        // Start polling
+        pollIntervalRef.current = setInterval(() => {
+          pollJobStatus(jobId);
+        }, POLL_INTERVAL_MS);
+
+        // Also poll immediately
+        pollJobStatus(jobId);
+      } else {
+        // Try local optimizer first
+        try {
+          toast.info('Connecting to local optimizer...');
+
+          const payload = {
+            scenario_id: selectedScenario,
+            pools,
+            hedges,
+            scenarios,
+            selected_buckets: selectedBuckets,
+            num_samples: 10,
+            relaxation_schedule: 1
+          };
+
+          const response = await fetch('http://localhost:8000/optimize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Local server error: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log('[Local Optimizer] Result:', data);
+
+          setResult(data);
+          setHasRunOptimizer(true);
+          addRun(data);
+          setJobStatus('completed');
+          toast.success('Optimization complete (via Local Python)!');
+
+        } catch (err) {
+          console.warn('Local optimizer failed, falling back to mock:', err);
+          toast.error('Local optimizer not reachable. Using in-browser mock.');
+
+          // Fallback to mock
+          const scenario = scenarios.find(s => s.scenario_id === selectedScenario)!;
+          const mockResult = runMockSolver(pools, hedges, scenario, selectedBuckets);
+          setResult(mockResult);
+          setHasRunOptimizer(true);
+          addRun(mockResult);
+          setJobStatus('completed');
+        }
+      }
+    } catch (error) {
+      console.error('Optimizer error:', error);
+      setJobStatus('failed');
+      toast.error('Optimization failed. Falling back to mock mode.');
+
+      // Fallback to mock
+      const scenario = scenarios.find(s => s.scenario_id === selectedScenario)!;
+      const mockResult = runMockSolver(pools, hedges, scenario, selectedBuckets);
+      setResult(mockResult);
+      setHasRunOptimizer(true);
+      addRun(mockResult);
+    }
+  };
+
+  const getStatusMessage = () => {
+    if (jobStatus === 'submitting') return 'Submitting job...';
+    if (jobStatus === 'polling') {
+      const mins = Math.floor(elapsedTime / 60);
+      const secs = elapsedTime % 60;
+      return `Processing... ${mins}:${secs.toString().padStart(2, '0')} (poll ${pollCount})`;
+    }
+    return 'Run Optimizer';
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Sidebar */}
+          <div className="lg:w-72 space-y-6">
+            <ScenarioSelector
+              scenarios={scenarios}
+              selected={selectedScenario}
+              onSelect={setSelectedScenario}
+            />
+
+            <ModeToggle
+              isApiMode={isApiMode}
+              onToggle={setIsApiMode}
+              apiStatus={apiStatus}
+            />
+
+            <BucketSelector
+              selected={selectedBuckets}
+              onChange={setSelectedBuckets}
+              positionError={positionError}
+              onPositionErrorChange={setPositionError}
+            />
+
+            <Button
+              onClick={handleRunOptimizer}
+              disabled={isRunning}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {getStatusMessage()}
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5" />
+                  Run Optimizer
+                </>
+              )}
+            </Button>
+
+            {isRunning && (
+              <Button
+                variant="destructive"
+                onClick={handleCancel}
+                className="w-full gap-2"
+                size="sm"
+              >
+                <XCircle className="w-4 h-4" />
+                Cancel
+              </Button>
+            )}
+
+            {/* Job progress indicator */}
+            {jobStatus === 'polling' && currentJobId && (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>DIRAC-3 processing...</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Job ID: {currentJobId.slice(0, 12)}...
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Elapsed: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+            )}
+
+            {!isRunning && (
+              <Button
+                variant="outline"
+                onClick={resetToDefaults}
+                className="w-full gap-2"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset to Defaults
+              </Button>
+            )}
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 space-y-6">
+            {/* Results - shown first when available */}
+            {result && (
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h2 className="text-xl font-bold mb-6">Optimization Results</h2>
+                <ResultsView result={result} />
+              </div>
+            )}
+
+            {/* Data Tabs - only shown after running optimizer */}
+            {hasRunOptimizer && (
+              <div className="rounded-xl border border-border bg-card p-6">
+                <Tabs defaultValue="pools">
+                  <div className="flex items-center justify-between mb-4">
+                    <TabsList>
+                      <TabsTrigger value="pools">Pools ({pools.length})</TabsTrigger>
+                      <TabsTrigger value="hedges">Hedges</TabsTrigger>
+                      <TabsTrigger value="scenarios">Scenarios ({scenarios.length})</TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  <TabsContent value="pools" className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        Configure the DeFi pools to analyze
+                      </p>
+                      <ImportExportButtons
+                        onImport={importPools}
+                        onExport={exportPools}
+                        label="Pools"
+                      />
+                    </div>
+                    {pools.length < 3 && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30 mb-4">
+                        <AlertCircle className="w-4 h-4 text-warning" />
+                        <span className="text-sm text-warning">Need at least 3 pools to run optimizer</span>
+                      </div>
+                    )}
+                    <PoolTable pools={pools} />
+                  </TabsContent>
+
+                  <TabsContent value="hedges" className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        Hedge configurations and cost parameters
+                      </p>
+                      <ImportExportButtons
+                        onImport={importHedges}
+                        onExport={exportHedges}
+                        label="Hedges"
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      {Object.entries(hedges.hedge_types).map(([type, config]) => (
+                        <div key={type} className="p-4 rounded-lg bg-muted/30 border border-border">
+                          <h4 className="font-medium capitalize mb-2">
+                            {type.replace(/_/g, ' ')}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Cost APR</span>
+                              <span className="font-mono">{(config.cost_apr * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">IL Reduction</span>
+                              <span className="font-mono">{((1 - config.il_multiplier) * 100).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border">
+                      <h4 className="font-medium mb-2">Size Scaling</h4>
+                      <div className="flex gap-4">
+                        {Object.entries(hedges.size_scaling).map(([size, mult]) => (
+                          <div key={size} className="text-sm">
+                            <span className="text-muted-foreground">{size}:</span>{' '}
+                            <span className="font-mono">{mult}x</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="scenarios" className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        Market condition scenarios with multipliers
+                      </p>
+                      <ImportExportButtons
+                        onImport={importScenarios}
+                        onExport={exportScenarios}
+                        label="Scenarios"
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {scenarios.map((scenario) => (
+                        <div key={scenario.scenario_id} className="p-4 rounded-lg bg-muted/30 border border-border">
+                          <h4 className="font-medium mb-1">{scenario.label}</h4>
+                          <p className="text-xs text-muted-foreground mb-3">{scenario.description}</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {Object.entries(scenario.multipliers).map(([key, value]) => (
+                              <div key={key} className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  {key.replace(/_multiplier/g, '').replace(/_/g, ' ')}
+                                </span>
+                                <span className={`font-mono ${value > 1 ? 'text-warning' : 'text-success'}`}>
+                                  {value}x
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
+
+            {/* Empty state when no run yet */}
+            {!hasRunOptimizer && !result && (
+              <div className="rounded-xl border border-dashed border-border bg-card/50 p-12 text-center">
+                <Zap className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Ready to Optimize</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Configure your position size, rebalance frequency, and hedge duration on the left,
+                  then click "Run Optimizer" to find the best strategy.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Optimizer;

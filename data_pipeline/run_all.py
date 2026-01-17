@@ -8,6 +8,7 @@ from data_pipeline.gas_fetcher import GasFetcher
 from data_pipeline.apy_fetcher import APYFetcher
 from data_pipeline.hedge_pricer import HedgePricer
 from data_pipeline.scenario_builder import ScenarioBuilder
+from data_pipeline.price_fetcher import PriceFetcher
 
 
 class DataPipelineRunner:
@@ -25,9 +26,11 @@ class DataPipelineRunner:
         self.apy_fetcher = APYFetcher()
         self.hedge_pricer = HedgePricer()
         self.scenario_builder = ScenarioBuilder()
+        self.price_fetcher = PriceFetcher()
         
-        # ETH price for gas cost calculations (fetch from API in production)
-        self.eth_price_usd = 3500
+        # Fetch live ETH price for gas cost calculations
+        self.eth_price_usd = self.price_fetcher.fetch_eth_price()
+        print(f"[DataPipeline] Using ETH price: ${self.eth_price_usd:,.2f}")
     
     def load_json(self, filename: str) -> Dict:
         """Load JSON file."""
@@ -88,6 +91,10 @@ class DataPipelineRunner:
             
             # Update TVL
             pool["tvl_usd"] = metrics.get("tvl_usd", 0)
+            
+            # Update tokens if available from metrics (for dynamically-fetched pools like POOL_5)
+            if metrics.get("tokens"):
+                pool["tokens"] = metrics["tokens"]
             
             # Update risk metrics
             pool["risk"]["il_risk_score"] = metrics.get("il_risk_score", 0)

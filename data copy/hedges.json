@@ -5,13 +5,20 @@
     "cost": "decimal APR-equivalent (0.03 = 3% per year) OR USD per week, choose one and stay consistent",
     "benefit": "multiplier on IL/risk penalty (0.70 means reduce IL penalty by 30%)"
   },
-
   "tenor_buckets": [
-    { "key": "7D", "days": 7 },
-    { "key": "14D", "days": 14 },
-    { "key": "30D", "days": 30 }
+    {
+      "key": "7D",
+      "days": 7
+    },
+    {
+      "key": "14D",
+      "days": 14
+    },
+    {
+      "key": "30D",
+      "days": 30
+    }
   ],
-
   "hedge_types": [
     {
       "key": "none",
@@ -32,34 +39,68 @@
       "default_il_multiplier": 0.80
     }
   ],
-
   "pool_overrides": [
     {
       "pool_id": "POOL_1",
       "tenor_overrides": {
         "7D": {
-          "none": { "cost_apr": 0.0, "il_multiplier": 1.0 },
-          "protective_put": { "cost_apr": 0.07, "il_multiplier": 0.60 },
-          "collar": { "cost_apr": 0.035, "il_multiplier": 0.78 }
+          "none": {
+            "cost_apr": 0.0,
+            "il_multiplier": 1.0
+          },
+          "protective_put": {
+            "cost_apr": 0.07,
+            "il_multiplier": 0.60
+          },
+          "collar": {
+            "cost_apr": 0.035,
+            "il_multiplier": 0.78
+          }
         },
         "14D": {
-          "none": { "cost_apr": 0.0, "il_multiplier": 1.0 },
-          "protective_put": { "cost_apr": 0.06, "il_multiplier": 0.65 },
-          "collar": { "cost_apr": 0.03, "il_multiplier": 0.80 }
+          "none": {
+            "cost_apr": 0.0,
+            "il_multiplier": 1.0
+          },
+          "protective_put": {
+            "cost_apr": 0.06,
+            "il_multiplier": 0.65
+          },
+          "collar": {
+            "cost_apr": 0.03,
+            "il_multiplier": 0.80
+          }
         },
         "30D": {
-          "none": { "cost_apr": 0.0, "il_multiplier": 1.0 },
-          "protective_put": { "cost_apr": 0.055, "il_multiplier": 0.70 },
-          "collar": { "cost_apr": 0.028, "il_multiplier": 0.83 }
+          "none": {
+            "cost_apr": 0.0,
+            "il_multiplier": 1.0
+          },
+          "protective_put": {
+            "cost_apr": 0.055,
+            "il_multiplier": 0.70
+          },
+          "collar": {
+            "cost_apr": 0.028,
+            "il_multiplier": 0.83
+          }
         }
       },
       "notes": "Override only if you want pool-specific hedge pricing. Otherwise rely on defaults."
     }
   ],
-
   "size_scaling": {
-    "S": { "cost_multiplier": 0.6, "benefit_multiplier": 1.0 },
-    "M": { "cost_multiplier": 1.0, "benefit_multiplier": 1.0 },
-    "L": { "cost_multiplier": 1.7, "benefit_multiplier": 1.0 }
+    "S": {
+      "cost_multiplier": 0.6,
+      "benefit_multiplier": 1.0
+    },
+    "M": {
+      "cost_multiplier": 1.0,
+      "benefit_multiplier": 1.0
+    },
+    "L": {
+      "cost_multiplier": 1.7,
+      "benefit_multiplier": 1.0
+    }
   }
 }
