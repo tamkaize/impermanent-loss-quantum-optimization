@@ -48,22 +48,22 @@
         "USDC",
         "SLVON"
       ],
-      "tvl_usd": 906242,
+      "tvl_usd": 907893,
       "fee_tier_bps": 5,
       "reward": {
-        "fee_apr": 0.02,
+        "fee_apr": 0.2,
         "incentive_apr": 0.0,
         "base_apr": 0.0,
         "notes": "fee_apr + incentive_apr + base_apr = total gross APR before costs"
       },
       "risk": {
-        "il_risk_score": 0.12,
-        "price_vol_score": 0.12,
+        "il_risk_score": 0.02,
+        "price_vol_score": 0.02,
         "liquidity_unwind_cost_usd": 500,
         "notes": "Use simple proxies in MVP (higher = worse)"
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.021140618100972,
+        "gas_cost_usd_per_rebalance": 13.17444,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.02,
         "failure_prob_per_rebalance": 0.01,
@@ -74,7 +74,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "etherscan"
+        "gas": "fallback"
       }
     },
     {
@@ -87,10 +87,10 @@
         "WBTC",
         "USDT"
       ],
-      "tvl_usd": 8078580,
+      "tvl_usd": 8070316,
       "fee_tier_bps": 30,
       "reward": {
-        "fee_apr": 0.1310562,
+        "fee_apr": 0.1179068,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -100,7 +100,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.013195633128,
+        "gas_cost_usd_per_rebalance": 0.0658722,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01
@@ -110,7 +110,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "etherscan"
+        "gas": "fallback"
       }
     },
     {
@@ -124,20 +124,20 @@
         "IUSDC",
         "IUSDT"
       ],
-      "tvl_usd": 1386215,
+      "tvl_usd": 1386665,
       "fee_tier_bps": 4,
       "reward": {
-        "fee_apr": 0.012374,
+        "fee_apr": 0.2,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
       "risk": {
-        "il_risk_score": 0.12,
-        "price_vol_score": 0.12,
+        "il_risk_score": 0.02,
+        "price_vol_score": 0.02,
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.021140618100972,
+        "gas_cost_usd_per_rebalance": 13.17444,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.02,
         "failure_prob_per_rebalance": 0.01
@@ -147,7 +147,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "etherscan"
+        "gas": "fallback"
       }
     },
     {
@@ -159,10 +159,10 @@
       "tokens": [
         "USDC"
       ],
-      "tvl_usd": 82211553,
+      "tvl_usd": 83582650,
       "fee_tier_bps": 0,
       "reward": {
-        "fee_apr": 0.026808600000000002,
+        "fee_apr": 0.0265734,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
@@ -172,7 +172,7 @@
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.006597816564,
+        "gas_cost_usd_per_rebalance": 0.0329361,
         "slippage_bps_per_rebalance": 5,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01
@@ -182,7 +182,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "etherscan"
+        "gas": "fallback"
       }
     },
     {
@@ -195,20 +195,20 @@
         "USDC",
         "WETH"
       ],
-      "tvl_usd": 2871234,
+      "tvl_usd": 2874735,
       "fee_tier_bps": 30,
       "reward": {
-        "fee_apr": 0.02,
+        "fee_apr": 0.2,
         "incentive_apr": 0.0,
         "base_apr": 0.0
       },
       "risk": {
-        "il_risk_score": 0.12,
-        "price_vol_score": 0.12,
+        "il_risk_score": 0.02,
+        "price_vol_score": 0.02,
         "liquidity_unwind_cost_usd": 500
       },
       "execution": {
-        "gas_cost_usd_per_rebalance": 0.007,
+        "gas_cost_usd_per_rebalance": 32.9361,
         "slippage_bps_per_rebalance": 10,
         "mev_risk_score": 0.005,
         "failure_prob_per_rebalance": 0.01
@@ -218,7 +218,7 @@
         "reward": "defillama",
         "tvl": "defillama",
         "prices": "TODO",
-        "gas": "etherscan"
+        "gas": "fallback"
       }
     }
   ]

@@ -5,13 +5,14 @@ from typing import Dict
 from scipy.stats import norm
 
 from data_pipeline.price_fetcher import PriceFetcher
+from data_pipeline.deribit_fetcher import DeribitFetcher
 
 
 class HedgePricer:
     """Prices protective puts and collars for hedging strategies."""
     
-    # Default implied volatilities (annualized)
-    DEFAULT_IV = {
+    # Default implied volatilities (annualized) - Fallback only
+    FALLBACK_IV = {
         "ETH": 0.60,  # 60% IV for ETH
         "BTC": 0.50,  # 50% IV for BTC
     }
@@ -23,6 +24,7 @@ class HedgePricer:
         """Initialize hedge pricer."""
         self.cache = {}
         self.price_fetcher = PriceFetcher()
+        self.deribit_fetcher = DeribitFetcher()
     
     def black_scholes_put(
         self,
@@ -213,7 +215,13 @@ class HedgePricer:
                 # Fallback for unknown assets
                 spot_price = 3500 if asset == "ETH" else 65000
         
-        volatility = self.DEFAULT_IV.get(asset, 0.60)
+        # Get Volatility (Live -> Fallback)
+        volatility = self.deribit_fetcher.fetch_volatility_index(asset)
+        if volatility is None:
+            volatility = self.FALLBACK_IV.get(asset, 0.60)
+            print(f"[HedgePricer] Using fallback IV for {asset}: {volatility:.2f}")
+        else:
+            print(f"[HedgePricer] Using live Deribit IV for {asset}: {volatility:.2f}")
         
         if hedge_type == "none":
             return {

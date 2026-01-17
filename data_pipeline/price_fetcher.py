@@ -57,10 +57,10 @@ class PriceFetcher:
         symbol = symbol.upper()
         
         # Check cache
-        if not force_refresh and symbol in self.price_cache:
-            if time.time() - self.cache_timestamp.get(symbol, 0) < self.cache_ttl:
-                print(f"[PriceFetcher] Using cached price for {symbol}: ${self.price_cache[symbol]:,.2f}")
-                return self.price_cache[symbol]
+        # if not force_refresh and symbol in self.price_cache:
+        #     if time.time() - self.cache_timestamp.get(symbol, 0) < self.cache_ttl:
+        #         print(f"[PriceFetcher] Using cached price for {symbol}: ${self.price_cache[symbol]:,.2f}")
+        #         return self.price_cache[symbol]
         
         # Get CoinGecko ID
         coin_id = self.SYMBOL_TO_ID.get(symbol)
