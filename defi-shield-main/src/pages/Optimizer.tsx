@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { ScenarioSelector } from '@/components/ScenarioSelector';
-import { ModeToggle } from '@/components/ModeToggle';
 import { BucketSelector } from '@/components/BucketSelector';
 import { PoolTable } from '@/components/PoolTable';
 import { ImportExportButtons } from '@/components/ImportExportButtons';
@@ -12,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppState } from '@/hooks/useAppState';
 import { runMockSolver, validatePools, validateScenarios } from '@/lib/solver';
 import { SelectedBuckets, OptimizerResult } from '@/types';
-import { Zap, AlertCircle, RotateCcw, Loader2, Clock, XCircle } from 'lucide-react';
+import { Zap, AlertCircle, RotateCcw, Loader2, Clock, XCircle, Play, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -38,8 +37,7 @@ const Optimizer = () => {
   } = useAppState();
 
   const [selectedScenario, setSelectedScenario] = useState(scenarios[0]?.scenario_id || 'CALM');
-  const [isApiMode, setIsApiMode] = useState(false);
-  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('offline');
+  const [isWaitlistJoined, setIsWaitlistJoined] = useState(false);
   const [jobStatus, setJobStatus] = useState<JobStatus>('idle');
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
@@ -57,22 +55,7 @@ const Optimizer = () => {
   const startTimeRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check DIRAC-3 API availability when mode changes
-  useEffect(() => {
-    if (isApiMode) {
-      setApiStatus('checking');
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        setApiStatus('offline');
-        return;
-      }
-
-      setApiStatus('online');
-    } else {
-      setApiStatus('offline');
-    }
-  }, [isApiMode]);
+  // Removed isApiMode effect
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -176,9 +159,13 @@ const Optimizer = () => {
 
   const isRunning = jobStatus === 'submitting' || jobStatus === 'polling';
 
-  const handleRunOptimizer = async () => {
-    // Validate position size on run attempt
-    if (!isPositionValid) {
+  const executeOptimization = async (scenarioId: string, buckets: SelectedBuckets) => {
+    // Validate position size
+    const isPosValid = buckets.position_size_usd !== null &&
+      buckets.position_size_usd > 0 &&
+      !isNaN(buckets.position_size_usd);
+
+    if (!isPosValid) {
       setPositionError('Please enter a valid amount');
       toast.error('Please enter a valid position size');
       return;
@@ -197,7 +184,7 @@ const Optimizer = () => {
       return;
     }
 
-    const scenario = scenarios.find(s => s.scenario_id === selectedScenario);
+    const scenario = scenarios.find(s => s.scenario_id === scenarioId);
     if (!scenario) {
       toast.error('Please select a scenario');
       return;
@@ -209,134 +196,80 @@ const Optimizer = () => {
     setElapsedTime(0);
 
     try {
-      if (false && isApiMode && apiStatus === 'online') {  // Disabled API mode - always use local
-        // Step 1: Submit job to DIRAC-3
-        toast.info('Submitting to DIRAC-3 quantum solver...');
+      // Always run mock optimizer
+      const useMock = true;
+      toast.info('Running optimizer...');
 
-        const payload = {
-          action: "submit" as const,
-          scenario_id: selectedScenario,
-          pools,
-          hedges,
-          scenarios,
-          selected_buckets: selectedBuckets,
-          request_baseline: true,
-          num_samples: 10,
-          relaxation_schedule: 1,
-        };
+      const payload = {
+        scenario_id: scenarioId,
+        selected_buckets: buckets,
+        num_samples: 10,
+        relaxation_schedule: 1,
+        use_mock: useMock
+      };
 
-        console.groupCollapsed('[DIRAC-3] Submit job');
-        console.log({
-          scenario_id: payload.scenario_id,
-          num_pools: payload.pools.length,
-          selected_buckets: payload.selected_buckets,
-        });
-        console.groupEnd();
+      const response = await fetch('http://localhost:8000/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-        const { data, error } = await supabase.functions.invoke('dirac-solver', {
-          body: payload,
-        });
-
-        if (error) {
-          console.error('DIRAC-3 submit error:', error);
-          throw new Error(error.message || 'DIRAC-3 job submission failed');
-        }
-
-        if (!data?.job_id) {
-          console.error('No job_id in response:', data);
-          throw new Error('DIRAC-3 did not return a job ID');
-        }
-
-        const jobId = data.job_id;
-        console.log('[DIRAC-3] Job submitted:', { job_id: jobId });
-
-        setCurrentJobId(jobId);
-        setJobStatus('polling');
-        startTimeRef.current = Date.now();
-
-        toast.info(`Job submitted! Polling for results... (ID: ${jobId.slice(0, 8)})`);
-
-        // Start elapsed time timer
-        timerIntervalRef.current = setInterval(() => {
-          setElapsedTime(Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000));
-        }, 1000);
-
-        // Start polling
-        pollIntervalRef.current = setInterval(() => {
-          pollJobStatus(jobId);
-        }, POLL_INTERVAL_MS);
-
-        // Also poll immediately
-        pollJobStatus(jobId);
-      } else {
-        // Try local optimizer first
-        try {
-          toast.info('Connecting to local optimizer...');
-
-          const payload = {
-            scenario_id: selectedScenario,
-            pools,
-            hedges,
-            scenarios,
-            selected_buckets: selectedBuckets,
-            num_samples: 10,
-            relaxation_schedule: 1
-          };
-
-          const response = await fetch('http://localhost:8000/optimize', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Local server error: ${response.statusText}`);
-          }
-
-          const data = await response.json();
-          console.log('[Local Optimizer] Result:', data);
-
-          setResult(data);
-          setHasRunOptimizer(true);
-          addRun(data);
-          setJobStatus('completed');
-          toast.success('Optimization complete (via Local Python)!');
-
-        } catch (err) {
-          console.warn('Local optimizer failed, falling back to mock:', err);
-          toast.error('Local optimizer not reachable. Using in-browser mock.');
-
-          // Fallback to mock
-          const scenario = scenarios.find(s => s.scenario_id === selectedScenario)!;
-          const mockResult = runMockSolver(pools, hedges, scenario, selectedBuckets);
-          setResult(mockResult);
-          setHasRunOptimizer(true);
-          addRun(mockResult);
-          setJobStatus('completed');
-        }
+      if (!response.ok) {
+        throw new Error(`Local server error: ${response.statusText}`);
       }
-    } catch (error) {
-      console.error('Optimizer error:', error);
-      setJobStatus('failed');
-      toast.error('Optimization failed. Falling back to mock mode.');
 
-      // Fallback to mock
-      const scenario = scenarios.find(s => s.scenario_id === selectedScenario)!;
-      const mockResult = runMockSolver(pools, hedges, scenario, selectedBuckets);
+      const data = await response.json();
+      console.log('[Optimizer] Result:', data);
+
+      setResult(data);
+      setHasRunOptimizer(true);
+      addRun(data);
+      setJobStatus('completed');
+      toast.success('Optimization complete!');
+
+    } catch (err) {
+      console.warn('Backend optimizer failed, falling back to client-side mock:', err);
+      toast.info('Falling back to in-browser engine.');
+
+      // Fallback to client-side mock
+      const mockResult = runMockSolver(pools, hedges, scenario, buckets);
       setResult(mockResult);
       setHasRunOptimizer(true);
       addRun(mockResult);
+      setJobStatus('completed');
     }
+
+  };
+
+  const handleRunOptimizer = () => {
+    executeOptimization(selectedScenario, selectedBuckets);
+  };
+
+  const handleDemoMode = () => {
+    const demoBuckets: SelectedBuckets = {
+      position_size_usd: 10000,
+      rebalance_bucket: 'weekly',
+      tenor_bucket: '14D'
+    };
+    const demoScenario = scenarios[0]?.scenario_id || 'CALM';
+
+    // Update state to reflect demo values
+    setSelectedBuckets(demoBuckets);
+    setSelectedScenario(demoScenario);
+    setPositionError(null);
+
+    // Run optimization
+    executeOptimization(demoScenario, demoBuckets);
   };
 
   const getStatusMessage = () => {
-    if (jobStatus === 'submitting') return 'Submitting job...';
+    if (jobStatus === 'submitting') return 'Starting engine...';
     if (jobStatus === 'polling') {
       const mins = Math.floor(elapsedTime / 60);
       const secs = elapsedTime % 60;
-      return `Processing... ${mins}:${secs.toString().padStart(2, '0')} (poll ${pollCount})`;
+      return `Quantum Processing... ${mins}:${secs.toString().padStart(2, '0')}`;
     }
     return 'Run Optimizer';
   };
@@ -348,84 +281,116 @@ const Optimizer = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Sidebar */}
-          <div className="lg:w-72 space-y-6">
-            <ScenarioSelector
-              scenarios={scenarios}
-              selected={selectedScenario}
-              onSelect={setSelectedScenario}
-            />
+          {/* Left Sidebar - Strategy Configuration */}
+          <div className="lg:w-80 space-y-6">
+            <div className="p-5 rounded-xl border border-border bg-card/50 shadow-sm backdrop-blur-sm">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                Strategy Config
+              </h2>
 
-            <ModeToggle
-              isApiMode={isApiMode}
-              onToggle={setIsApiMode}
-              apiStatus={apiStatus}
-            />
+              <div className="space-y-6">
+                <ScenarioSelector
+                  scenarios={scenarios}
+                  selected={selectedScenario}
+                  onSelect={setSelectedScenario}
+                />
 
-            <BucketSelector
-              selected={selectedBuckets}
-              onChange={setSelectedBuckets}
-              positionError={positionError}
-              onPositionErrorChange={setPositionError}
-            />
+                <BucketSelector
+                  selected={selectedBuckets}
+                  onChange={setSelectedBuckets}
+                  positionError={positionError}
+                  onPositionErrorChange={setPositionError}
+                />
 
-            <Button
-              onClick={handleRunOptimizer}
-              disabled={isRunning}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {getStatusMessage()}
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" />
-                  Run Optimizer
-                </>
-              )}
-            </Button>
-
-            {isRunning && (
-              <Button
-                variant="destructive"
-                onClick={handleCancel}
-                className="w-full gap-2"
-                size="sm"
-              >
-                <XCircle className="w-4 h-4" />
-                Cancel
-              </Button>
-            )}
-
-            {/* Job progress indicator */}
-            {jobStatus === 'polling' && currentJobId && (
-              <div className="p-3 rounded-lg bg-muted/30 border border-border text-sm space-y-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>DIRAC-3 processing...</span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Job ID: {currentJobId.slice(0, 12)}...
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Elapsed: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
+                <div className="pt-2">
+                  <div className="p-4 rounded-lg border border-border bg-muted/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="text-sm font-medium text-muted-foreground">Quantum Backend</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Dirac-3 Quantum access is currently limited. Sign up to get early access.
+                    </p>
+                    {isWaitlistJoined ? (
+                      <div className="text-xs text-green-500 font-medium flex items-center gap-1">
+                        ✓ You're on the waitlist!
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs h-8"
+                        onClick={() => {
+                          setIsWaitlistJoined(true);
+                          toast.success("You've been added to the Quantum Waitlist!");
+                        }}
+                      >
+                        Join Waitlist
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
 
-            {!isRunning && (
-              <Button
-                variant="outline"
-                onClick={resetToDefaults}
-                className="w-full gap-2"
-                size="sm"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset to Defaults
-              </Button>
-            )}
+              <div className="mt-8 space-y-3">
+                <Button
+                  onClick={handleRunOptimizer}
+                  disabled={isRunning}
+                  className="w-full gap-2 relative overflow-hidden group"
+                  size="lg"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {isRunning ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {getStatusMessage()}
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5 group-hover:text-white transition-colors" />
+                      Run Optimizer
+                    </>
+                  )}
+                </Button>
+
+                {!isRunning && !result && (
+                  <Button
+                    onClick={handleDemoMode}
+                    variant="secondary"
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    Demo Mode (Instant)
+                  </Button>
+                )}
+
+                {isRunning && (
+                  <Button
+                    variant="destructive"
+                    onClick={handleCancel}
+                    className="w-full gap-2"
+                    size="sm"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancel
+                  </Button>
+                )}
+
+                {!isRunning && (
+                  <Button
+                    variant="ghost"
+                    onClick={resetToDefaults}
+                    className="w-full gap-2 text-muted-foreground hover:text-foreground"
+                    size="sm"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset to Defaults
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Main Content */}

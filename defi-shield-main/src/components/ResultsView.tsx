@@ -15,6 +15,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 
 interface ResultsViewProps {
   result: OptimizerResult;
@@ -157,24 +167,71 @@ export const ResultsView = ({ result }: ResultsViewProps) => {
           <Repeat className="w-4 h-4" />
           Baseline Comparison
         </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Compared to just picking the highest gross APR ({baselinePoolLabel}) without hedging:
-        </p>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 rounded-lg bg-muted/30">
-            <div className="text-xs text-muted-foreground mb-1">Baseline Net</div>
-            <div className="font-mono text-lg">{formatPercent(baselineNetApr)}</div>
-          </div>
-          <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-            <div className="text-xs text-muted-foreground mb-1">Optimized Net</div>
-            <div className="font-mono text-lg font-bold text-primary">{formatPercent(optimizedNetApr)}</div>
-          </div>
-          <div className="text-center p-4 rounded-lg bg-muted/30">
-            <div className="text-xs text-muted-foreground mb-1">Improvement</div>
-            <div className={`font-mono text-lg font-bold ${deltaNetApr >= 0 ? 'text-success' : 'text-destructive'
-              }`}>
-              {formatDelta(deltaNetApr)}
+        <div className="flex flex-col md:flex-row gap-8 items-center">
+          <div className="flex-1 space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Compared to just picking the highest gross APR ({baselinePoolLabel}) without hedging,
+              Kurtosis Labs improves your net return by <span className={deltaNetApr >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{formatDelta(deltaNetApr)}</span>.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-muted/30">
+                <div className="text-xs text-muted-foreground">Baseline Net</div>
+                <div className="text-lg font-mono">{formatPercent(baselineNetApr)}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="text-xs text-muted-foreground text-primary">Optimized Net</div>
+                <div className="text-lg font-mono font-bold text-primary">{formatPercent(optimizedNetApr)}</div>
+              </div>
             </div>
+          </div>
+
+          <div className="w-full md:w-1/2 h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Baseline', value: baselineNetApr * 100 },
+                  { name: 'Optimized', value: optimizedNetApr * 100 },
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    borderColor: 'hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                  formatter={(value: number) => [`${value.toFixed(2)}%`, 'Net APR']}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {
+                    [
+                      { name: 'Baseline', value: baselineNetApr * 100 },
+                      { name: 'Optimized', value: optimizedNetApr * 100 },
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 1 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground)/0.5)'} />
+                    ))
+                  }
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

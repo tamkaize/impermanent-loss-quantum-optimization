@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
+import { WaitlistForm } from '@/components/WaitlistForm';
 import { Button } from '@/components/ui/button';
-import { 
-  Zap, 
-  Shield, 
-  BarChart3, 
-  TrendingUp, 
+import {
+  Zap,
+  Shield,
+  BarChart3,
+  TrendingUp,
   ArrowRight,
   Fuel,
   Repeat,
@@ -53,9 +54,10 @@ const Landing = () => {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl" />
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
+            {/*
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 mb-6">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -63,23 +65,26 @@ const Landing = () => {
               </span>
               <span className="text-sm text-primary font-medium">Hackathon MVP Demo</span>
             </div>
-            
+*/}
+
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
               Stop Getting Fooled by{' '}
               <span className="gradient-text">Headline APY</span>
             </h1>
-            
+
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              That 200% APY looks amazing... until gas fees, slippage, and impermanent loss eat your profits. 
+              That 200% APY looks amazing... until gas fees, slippage, and impermanent loss eat your profits.
               Kurtosis Labs shows you the <strong>real</strong> returns after all costs.
             </p>
-            
+
             <Link to="/optimizer">
-              <Button size="lg" className="gap-2 text-lg px-8 py-6">
+              <Button size="lg" className="gap-2 text-lg px-8 py-6 shadow-lg hover:shadow-primary/20 transition-all">
                 Open Optimizer
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
+
+            <WaitlistForm />
           </div>
         </div>
       </section>
@@ -150,7 +155,7 @@ const Landing = () => {
             <p className="text-muted-foreground text-center mb-8">
               New to DeFi? Here's what you need to know:
             </p>
-            
+
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {concepts.map(({ icon: Icon, title, description }) => (
                 <div key={title} className="p-4 rounded-xl bg-card border border-border hover:border-primary/50 transition-colors">
@@ -175,7 +180,7 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold mb-8 text-center">How Kurtosis Labs Works</h2>
-            
+
             <div className="grid md:grid-cols-4 gap-6">
               {[
                 { step: 1, title: "Input Pools", desc: "Add the DeFi pools you're considering" },

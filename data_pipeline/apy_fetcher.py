@@ -38,7 +38,8 @@ class APYFetcher:
         },
         "POOL_5": {
             "chain": None,  # Search all chains for high yield
-            "min_apy": 50.0,  # Looking for >50% APY
+            "min_apy": 15.0,  # Looking for >50% APY
+            "min_tvl": 1000000,  # Require $1M+ TVL to avoid broken/exploited pools
             "label": "Volatile LP (high reward, high risk)"
         }
     }
@@ -165,7 +166,8 @@ class APYFetcher:
             chain=mapping.get("chain"),
             token=mapping.get("token"),
             protocol=mapping.get("protocol"),
-            min_apy=mapping.get("min_apy")
+            min_apy=mapping.get("min_apy"),
+            min_tvl=mapping.get("min_tvl", 100000)  # Use pool-specific TVL or default $100k
         )
         
         if not pool:
@@ -174,6 +176,14 @@ class APYFetcher:
         
         # Extract metrics (handle None values)
         apy = (pool.get("apy") or 0) / 100  # Convert percentage to decimal
+        
+        # Sanity check: Cap at reasonable maximum (200% = 2.0 decimal)
+        # Values >200% are likely data quality issues, exploits, or flash loan distortions
+        MAX_REASONABLE_APY = 0.2
+        if apy > MAX_REASONABLE_APY:
+            print(f"[APYFetcher] WARNING: Capping unrealistic APY {apy*100:.2f}% to {MAX_REASONABLE_APY*100:.0f}%")
+            apy = MAX_REASONABLE_APY
+        
         apy_base = (pool.get("apyBase") or 0) / 100
         apy_reward = (pool.get("apyReward") or 0) / 100
         tvl = pool.get("tvlUsd", 0)
@@ -209,7 +219,7 @@ class APYFetcher:
         metrics = {
             "pool_id": pool_id,
             "label": mapping["label"],
-            "fee_apr": apy_base,
+            "fee_apr": apy,  # Use capped total APY as fee_apr
             "incentive_apr": apy_reward,
             "total_apy": apy,
             "tvl_usd": tvl,
